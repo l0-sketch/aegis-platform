@@ -1,0 +1,49 @@
+import prisma from '@/lib/db';
+import { NextRequest } from 'next/server';
+import { apiError, json } from '@/lib/api';
+import { requireAuth } from '@/lib/auth';
+
+export async function GET(_request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    if (!user) return apiError('Unauthorized', 401);
+
+    const projects = await prisma.project.findMany({
+      where: { ownerId: user.id },
+      orderBy: { updatedAt: 'desc' },
+      take: 10
+    });
+
+    return json({ ok: true, projects });
+  } catch (error: any) {
+    return apiError(error?.message || 'Unable to fetch projects.', 500);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    if (!user) return apiError('Unauthorized', 401);
+
+    const body = await request.json();
+    const name = String(body.name || '').trim();
+    const description = String(body.description || '');
+    const priority = String(body.priority || 'medium');
+
+    if (!name) return apiError('A project name is required.', 400);
+
+    const project = await prisma.project.create({
+      data: {
+        name,
+        description,
+        priority,
+        ownerId: user.id,
+        status: 'active'
+      }
+    });
+
+    return json({ ok: true, project });
+  } catch (error: any) {
+    return apiError(error?.message || 'Unable to create project.', 500);
+  }
+}

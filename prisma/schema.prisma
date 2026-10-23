@@ -1,0 +1,165 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  passwordHash  String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  settings      UserSetting?
+  projects      Project[]
+  conversations Conversation[]
+  documents     Document[]
+  sources       Source[]
+  imports       ImportRecord[]
+  notebook      NotebookEntry[]
+  tasks         Task[]
+}
+
+model UserSetting {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  theme          String   @default("dark")
+  accentColor    String   @default("cyan")
+  defaultModel   String   @default("local")
+  researchMode   String   @default("deep")
+  notifications Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model Project {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  status         String       @default("active")
+  priority       String       @default("medium")
+  budget         Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  ownerId        String
+  owner          User         @relation(fields: [ownerId], references: [id])
+  conversations  Conversation[]
+  tasks          Task[]
+  notes          Document[]
+  milestones     Milestone[]
+  sources        Source[]
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  dueDate     DateTime?
+  status      String   @default("planned")
+  description String?
+  project     Project  @relation(fields: [projectId], references: [id])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  projectId   String?
+  ownerId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project?  @relation(fields: [projectId], references: [id])
+  owner       User?     @relation(fields: [ownerId], references: [id])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  title         String
+  summary       String?
+  mode          String    @default("research")
+  ownerId       String
+  projectId     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  messages      Message[]
+  owner         User      @relation(fields: [ownerId], references: [id])
+  project       Project?  @relation(fields: [projectId], references: [id])
+}
+
+model Message {
+  id            String       @id @default(cuid())
+  conversationId String
+  sender        String       @default("user")
+  content       String
+  citations     String?
+  createdAt     DateTime     @default(now())
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model Document {
+  id           String    @id @default(cuid())
+  title        String
+  type         String
+  folder       String?
+  content      String?
+  tags         String?
+  summary      String?
+  version      Int       @default(1)
+  status       String    @default("active")
+  ownerId      String
+  projectId    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  owner        User      @relation(fields: [ownerId], references: [id])
+  project      Project?  @relation(fields: [projectId], references: [id])
+}
+
+model Source {
+  id          String    @id @default(cuid())
+  title       String
+  url         String?
+  authors     String?
+  year        Int?
+  summary     String?
+  tags        String?
+  notes       String?
+  ownerId     String
+  projectId   String?
+  createdAt   DateTime  @default(now())
+  owner       User      @relation(fields: [ownerId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id])
+}
+
+model ImportRecord {
+  id            String    @id @default(cuid())
+  ownerId       String
+  fileName      String
+  fileType      String
+  status        String    @default("queued")
+  summary       String?
+  metadata      String?
+  createdAt     DateTime  @default(now())
+  owner         User      @relation(fields: [ownerId], references: [id])
+}
+
+model NotebookEntry {
+  id          String   @id @default(cuid())
+  title       String
+  hypothesis  String?
+  procedure   String?
+  observations String?
+  results     String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  owner       User     @relation(fields: [ownerId], references: [id])
+}
