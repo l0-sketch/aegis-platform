@@ -1,20 +1,20 @@
 import prisma from './db';
 
 export async function getDashboardSummary(userId: string) {
-  const [projectCount, conversationCount, documentCount, taskCount, imports] = await Promise.all([
+  const [projectCount, conversationCount, taskCount, documentCount, importCount] = await Promise.all([
     prisma.project.count({ where: { ownerId: userId } }),
     prisma.conversation.count({ where: { ownerId: userId } }),
-    prisma.document.count({ where: { ownerId: userId } }),
     prisma.task.count({ where: { ownerId: userId } }),
-    prisma.importRecord.findMany({ where: { ownerId: userId }, orderBy: { createdAt: 'desc' }, take: 5 })
+    prisma.document.count({ where: { ownerId: userId } }),
+    prisma.importRecord.count({ where: { ownerId: userId } }),
   ]);
 
   return {
     projectCount,
     conversationCount,
-    documentCount,
     taskCount,
-    imports
+    documentCount,
+    importCount,
   };
 }
 

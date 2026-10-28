@@ -11,12 +11,12 @@ export async function GET(_request: NextRequest) {
     const projects = await prisma.project.findMany({
       where: { ownerId: user.id },
       orderBy: { updatedAt: 'desc' },
-      take: 10
+      take: 20,
     });
 
     return json({ ok: true, projects });
   } catch (error: any) {
-    return apiError(error?.message || 'Unable to fetch projects.', 500);
+    return apiError(error?.message || 'Unable to load projects.', 500);
   }
 }
 
@@ -27,19 +27,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const name = String(body.name || '').trim();
-    const description = String(body.description || '');
-    const priority = String(body.priority || 'medium');
-
-    if (!name) return apiError('A project name is required.', 400);
+    if (!name) return apiError('Project name is required.', 400);
 
     const project = await prisma.project.create({
       data: {
         name,
-        description,
-        priority,
+        description: body.description || '',
+        status: body.status || 'active',
+        priority: body.priority || 'medium',
+        budget: body.budget ? Number(body.budget) : null,
         ownerId: user.id,
-        status: 'active'
-      }
+      },
     });
 
     return json({ ok: true, project });

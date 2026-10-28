@@ -1,54 +1,61 @@
-import Link from 'next/link';
-import { redirect, RedirectType } from 'next/navigation';
-import { AppShell } from '@/components/app-shell';
+import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { AppShell } from '@/components/app-shell';
 
-export default async function ResearchPage() {
+export default async function AssistantPage() {
   const user = await requireAuth();
-  if (!user) redirect('/login', RedirectType.replace);
+  if (!user) redirect('/login');
 
-  const documents = await prisma.document.findMany({
+  const conversations = await prisma.conversation.findMany({
     where: { ownerId: user.id },
+    include: { messages: true },
     orderBy: { updatedAt: 'desc' },
-    take: 12
+    take: 12,
   });
 
   return (
     <AppShell userName={user.name}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-400">Knowledge base</p>
-            <h1 className="mt-2 text-3xl font-bold text-white">Research library</h1>
-          </div>
-          <Link href="/dashboard" className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200">Overview</Link>
+        <div>
+          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">AI workspace</p>
+          <h1 className="mt-2 text-3xl font-bold text-white">AEGIS assistant</h1>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <input className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" placeholder="Search notes, papers, equations, theories, prototypes..." />
-            <button className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950">Search</button>
+        <form action="/api/assistant" method="POST" className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+          <label className="mb-2 block text-sm font-medium text-slate-300">Prompt</label>
+          <textarea name="question" rows={6} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100" placeholder="Ask about a hypothesis, system design, experiment design, or technical issue..." />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <select name="mode" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100">
+              <option value="research">Research</option>
+              <option value="engineering">Engineering</option>
+              <option value="analysis">Analysis</option>
+              <option value="writing">Writing</option>
+            </select>
+            <button type="submit" className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950">Send</button>
           </div>
+        </form>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            {documents.map((doc) => (
-              <div key={doc.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <span>{doc.type}</span>
-                  <span>{doc.version}</span>
+        <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+          <h2 className="mb-4 text-lg font-semibold text-white">Conversation memory</h2>
+          <div className="space-y-3">
+            {conversations.length ? conversations.map((conversation) => (
+              <div key={conversation.id} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-cyan-300">{conversation.title}</span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{conversation.mode}</span>
                 </div>
-                <h3 className="mt-3 text-lg font-semibold text-white">{doc.title}</h3>
-                <p className="mt-2 text-sm text-slate-400">{doc.summary || 'No summary stored.'}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(doc.tags || '').split(',').filter(Boolean).slice(0, 3).map((tag) => (
-                    <span key={tag} className="rounded-full bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300">{tag}</span>
+                <div className="mt-2 space-y-2 text-sm text-slate-400">
+                  {conversation.messages.slice(0, 3).map((message) => (
+                    <div key={message.id}>
+                      <span className="font-medium text-slate-200">{message.sender === 'assistant' ? 'Assistant' : 'User'}:</span> {message.content.slice(0, 140)}
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
+            )) : <p className="text-sm text-slate-400">No assistant conversations yet.</p>}
           </div>
-        </div>
+        </section>
       </div>
     </AppShell>
   );

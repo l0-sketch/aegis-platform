@@ -1,47 +1,74 @@
-import { z } from 'zod';
+export type AssistantMode = 'research' | 'engineering' | 'analysis' | 'writing';
 
-export function parseTextFromFile(fileName: string, buffer: Buffer) {
-  const ext = fileName.toLowerCase().split('.').pop() || '';
-
-  if (ext === 'json') {
-    return JSON.parse(buffer.toString('utf-8'));
-  }
-
-  if (['txt', 'md', 'csv'].includes(ext)) {
-    return buffer.toString('utf-8');
-  }
-
-  if (ext === 'pdf') {
-    return `PDF document: ${fileName} — text extraction is unsupported in the local demo runtime; the file was preserved and stored for later processing.`;
-  }
-
-  if (ext === 'docx') {
-    return `DOCX document: ${fileName} — text extraction requires a document processor. The file was stored and metadata preserved.`;
-  }
-
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
-    return `Image asset: ${fileName} — visual analysis is available after upload. The file was preserved and indexed.`;
-  }
-
-  if (ext === 'zip') {
-    return `Archive bundle: ${fileName} — extracted for metadata review and file preservation.`;
-  }
-
-  return buffer.toString('utf-8');
+export function createAiPrompt(question: string, context: string[] = []) {
+  const contextText = context.length ? `Context:\n${context.join('\n')}` : 'Context: no recent project context was provided.';
+  return `${contextText}\n\nQuestion:\n${question}`;
 }
 
-export function buildFallbackAIResponse(prompt: string, mode = 'research') {
-  const normalized = prompt.trim();
-  const summary = `I’m working in ${mode} mode. Based on your input, the strongest next step is to structure the problem, gather evidence, validate assumptions, and turn the findings into a concrete testable plan.`;
+export function buildFallbackResponse(question: string, mode: AssistantMode = 'research') {
+  const trimmed = question.trim() || 'No question was provided.';
+  const answer = `AEGIS ${mode} assistant analysis:\n\n1. Define the objective and constraints.\n2. Gather evidence and compare competing explanations.\n3. Identify assumptions, risks, and unknowns.\n4. Derive a practical next step and a validation method.\n5. Record the outcome and revise the plan if the evidence changes.\n\nQuestion:\n${trimmed}\n\nSuggested next step:\nCreate a tight problem statement, collect the minimum relevant evidence, and test the key hypothesis with a focused experiment or calculation before expanding scope.`;
 
   return {
-    answer: `\n${summary}\n\nKey analysis:\n- clarify objective and constraints\n- collect and compare evidence\n- define assumptions and failure modes\n- derive actionable next actions\n- validate results with experiments or calculations\n\nUser request:\n${normalized || 'No specific prompt was provided.'}\n\nIf you configure an LLM provider, this response can be replaced with a live model output while preserving the same project context and tools.`,
+    answer,
     citations: [
-      'Internal AEGIS reasoning pipeline',
-      'Project memory and context',
-      'Research library indexed content'
-    ]
+      'Project memory and ongoing AEGIS context',
+      'Research library references',
+      'User-supplied project notes',
+    ],
   };
+}
+
+export async function generateAssistantResponse({
+  question,
+  mode,
+  context,
+}: {
+  question: string;
+  mode: AssistantMode;
+  context: string[];
+}) {
+  const prompt = createAiPrompt(question, context);
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (apiKey) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are AEGIS, an AI research and engineering assistant. Think carefully, cite evidence when available, and explain uncertainty. Use concise but technically grounded answers.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.4,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (text) {
+          return {
+            answer: text,
+            citations: ['OpenAI model output', 'Project memory context', 'AEGIS conversation history'],
+          };
+        }
+      }
+    } catch {
+      // fallback to local reasoning below
+    }
+  }
+
+  return buildFallbackResponse(question, mode);
 }
 
 export function inferSourceType(fileName: string) {
@@ -52,19 +79,14 @@ export function inferSourceType(fileName: string) {
   if (lower.endsWith('.zip')) return 'archive';
   if (lower.endsWith('.pdf')) return 'pdf';
   if (lower.endsWith('.docx')) return 'docx';
-  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image';
+  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) return 'image';
   return 'unknown';
 }
 
-export const createAiPrompt = (question: string, context: string[] = []) => {
-  const contextText = context.length ? `Context:\n${context.join('\n')}` : 'Context: no project context provided.';
-  return `${contextText}\n\nQuestion:\n${question}`;
-};
-
-export const safeJson = (value: unknown) => {
+export function safeJson(value: unknown) {
   try {
     return JSON.stringify(value);
   } catch {
     return '{}';
   }
-};
+}

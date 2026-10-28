@@ -11,7 +11,7 @@ export const AUTH_COOKIE = 'aegis_session';
 
 export function signToken(payload: SessionUser) {
   return jwt.sign(payload, process.env.JWT_SECRET || 'change-me-in-production', {
-    expiresIn: '7d'
+    expiresIn: '7d',
   });
 }
 
@@ -29,7 +29,7 @@ export function setAuthCookie(token: string) {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7
+    maxAge: 60 * 60 * 24 * 7,
   });
 }
 
