@@ -1,245 +1,433 @@
-"use client";
+* {
+  box-sizing: border-box;
+}
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { DocumentEntry, Message, Session } from "@/lib/types";
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(77, 165, 255, 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.08), transparent 26%),
+    #060d14;
+  color: #edf7ff;
+  font-family: Inter, "Segoe UI", sans-serif;
+}
 
-const initialPrompt = "Share your current objective, and I will determine the next useful thread of inquiry.";
+body {
+  min-height: 100vh;
+}
 
-export default function ChatInterface() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
-  const [docs, setDocs] = useState<DocumentEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [documentTitle, setDocumentTitle] = useState("Research Note");
-  const [documentBody, setDocumentBody] = useState("");
-  const [documentTags, setDocumentTags] = useState("research, notes");
-  const endRef = useRef<HTMLDivElement | null>(null);
+button,
+input,
+textarea {
+  font: inherit;
+}
 
-  const activeSession = useMemo(
-    () => sessions.find((session) => session.id === activeSessionId) ?? null,
-    [activeSessionId, sessions]
-  );
+button {
+  cursor: pointer;
+}
 
-  async function loadSessions() {
-    const response = await fetch("/api/sessions");
-    const payload = await response.json();
-    setSessions(payload.sessions ?? []);
-    setDocs(payload.documents ?? []);
+.scion-console {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1.5fr) 330px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, rgba(6, 13, 20, 0.96), rgba(9, 14, 20, 0.98));
+}
 
-    if (!payload.sessions?.length) {
-      const created = await createSession("Initial Research Thread");
-      setActiveSessionId(created.id);
-      return;
-    }
+.operations-panel,
+.vault-panel {
+  padding: 22px 18px;
+  background: rgba(10, 15, 21, 0.84);
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+}
 
-    const initial = payload.sessions[0];
-    setActiveSessionId(initial.id);
+.vault-panel {
+  border-right: none;
+  border-left: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.brand-block {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.brand-name {
+  font-size: 1.9rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: #dfeeff;
+  text-transform: uppercase;
+}
+
+.brand-subtitle {
+  margin-top: 10px;
+  color: rgba(191, 219, 254, 0.7);
+  font-size: 0.7rem;
+  line-height: 1.55;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.mission-card {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(8, 47, 73, 0.35), rgba(15, 23, 42, 0.4));
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.04), 0 12px 24px rgba(2, 6, 23, 0.22);
+}
+
+.mini-label {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(125, 211, 252, 0.8);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+.mission-card strong {
+  display: block;
+  font-size: 1.04rem;
+  color: #eff6ff;
+}
+
+.mission-card small {
+  display: block;
+  margin-top: 6px;
+  color: rgba(191, 219, 254, 0.7);
+  line-height: 1.5;
+}
+
+.primary-action,
+.secondary-action {
+  width: 100%;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  color: #e0f2fe;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(59, 130, 246, 0.08));
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary-action {
+  margin-top: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.secondary-action {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.primary-action:hover,
+.secondary-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(125, 211, 252, 0.42);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.1);
+}
+
+.session-list {
+  margin-top: 20px;
+}
+
+.panel-header {
+  margin-bottom: 12px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.9);
+}
+
+.session-item {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+  color: #e2e8f0;
+  padding: 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.session-item span {
+  font-weight: 600;
+  color: #eff6ff;
+}
+
+.session-item small {
+  margin-top: 4px;
+  color: rgba(191, 219, 254, 0.62);
+}
+
+.session-item.active {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(125, 211, 252, 0.35);
+}
+
+.signal-hub {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 18px 18px;
+  background: rgba(7, 12, 18, 0.72);
+}
+
+.hub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.hub-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 2vw, 2.4rem);
+  letter-spacing: 0.03em;
+}
+
+.signal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(74, 222, 128, 0.28);
+  background: rgba(20, 83, 45, 0.2);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #bbf7d0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.85);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.metric-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.64);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.metric-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(191, 219, 254, 0.7);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  font-size: 1.45rem;
+  color: #eff6ff;
+}
+
+.chat-panel {
+  flex: 1;
+  margin-top: 18px;
+  padding: 16px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.45);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.message-row {
+  display: flex;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: min(80%, 680px);
+  border-radius: 16px;
+  background: rgba(12, 59, 85, 0.24);
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  padding: 12px 14px;
+}
+
+.message-row.user .message-bubble {
+  background: rgba(30, 64, 175, 0.14);
+  border-color: rgba(96, 165, 250, 0.2);
+}
+
+.message-author {
+  margin-bottom: 6px;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.8);
+}
+
+.message-bubble p {
+  margin: 0;
+  color: #ebf7ff;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.empty-state {
+  min-height: 240px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #dfeaf7;
+}
+
+.empty-chip {
+  display: inline-block;
+  width: fit-content;
+  margin: 0 auto 14px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  background: rgba(14, 116, 144, 0.12);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+  color: rgba(147, 197, 253, 0.8);
+}
+
+.empty-state h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.4rem, 2vw, 2.2rem);
+  line-height: 1.4;
+}
+
+.empty-state p {
+  margin: 0;
+  color: rgba(191, 219, 254, 0.72);
+  max-width: 560px;
+}
+
+.composer {
+  margin-top: 16px;
+}
+
+.composer textarea,
+.panel-card input,
+.panel-card textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.8);
+  color: #edf6ff;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.composer textarea {
+  min-height: 120px;
+}
+
+.composer textarea::placeholder,
+.panel-card input::placeholder,
+.panel-card textarea::placeholder {
+  color: rgba(191, 219, 254, 0.5);
+}
+
+.composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.composer-actions .primary-action {
+  width: auto;
+  min-width: 160px;
+  margin-top: 0;
+}
+
+.panel-card {
+  background: rgba(15, 23, 42, 0.64);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.panel-card + .panel-card {
+  margin-top: 18px;
+}
+
+.document-item {
+  padding: 10px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.document-item:first-of-type {
+  border-top: none;
+}
+
+.document-item strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #eff6ff;
+}
+
+.document-item p,
+.empty-copy {
+  margin: 0;
+  color: rgba(191, 219, 254, 0.7);
+  line-height: 1.55;
+}
+
+.ingest-card input,
+.ingest-card textarea {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1180px) {
+  .scion-console {
+    grid-template-columns: 1fr;
   }
 
-  async function createSession(name: string) {
-    const response = await fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name })
-    });
-    const payload = await response.json();
-    const session = payload.session as Session;
-    setSessions((current) => [session, ...current]);
-    setActiveSessionId(session.id);
-    return session;
+  .operations-panel,
+  .vault-panel {
+    border: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  .signal-hub {
+    padding-top: 16px;
+  }
+}
 
-    const text = input.trim();
-    setInput("");
-    setIsLoading(true);
-
-    let session = activeSession;
-    if (!session) {
-      session = await createSession("Live Research Thread");
-    }
-
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: session?.id,
-        sessionName: session?.name,
-        input: text
-      })
-    });
-
-    const payload = await response.json();
-    setSessions((current) => {
-      const next = current.map((entry) => {
-        if (entry.id !== payload.sessionId) return entry;
-        return { ...entry, messages: payload.messages ?? entry.messages, updatedAt: new Date().toISOString() };
-      });
-
-      const hasSession = next.some((entry) => entry.id === payload.sessionId);
-      if (!hasSession) {
-        return [{
-          id: payload.sessionId,
-          name: session?.name ?? "Live Research Thread",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: payload.messages ?? []
-        }, ...next];
-      }
-
-      return next;
-    });
-
-    setDocs((current) => current.length ? current : payload.relevantDocuments ?? []);
-    setIsLoading(false);
+@media (max-width: 640px) {
+  .status-grid {
+    grid-template-columns: 1fr;
   }
 
-  async function handleSaveDocument() {
-    const trimmed = documentBody.trim();
-    if (!trimmed) return;
-
-    const response = await fetch("/api/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: documentTitle || "Research Note",
-        content: trimmed,
-        tags: documentTags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-      })
-    });
-
-    if (response.ok) {
-      const payload = await response.json();
-      setDocs((current) => [payload.document, ...current]);
-      setDocumentBody("");
-      setDocumentTitle("Research Note");
-      setDocumentTags("research, notes");
-    }
+  .hub-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeSession?.messages]);
-
-  return (
-    <main className="scion-shell">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <div className="brand-mark">S.C.I.O.N.</div>
-          <p>Scientific Cognitive Intelligence and Operations Network</p>
-        </div>
-
-        <button className="primary-button" onClick={() => createSession(`Session ${sessions.length + 1}`)}>
-          New session
-        </button>
-
-        <div className="session-list">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              className={`session-item ${session.id === activeSessionId ? "active" : ""}`}
-              onClick={() => setActiveSessionId(session.id)}
-              type="button"
-            >
-              <span>{session.name}</span>
-              <small>{session.messages.length} messages</small>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <section className="content">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">AI research partner</p>
-            <h1>{activeSession?.name ?? "S.C.I.O.N."}</h1>
-          </div>
-          <div className="status-pill">{isLoading ? "Thinking..." : "Operational"}</div>
-        </header>
-
-        <div className="chat-panel">
-          {activeSession?.messages?.length ? (
-            activeSession.messages.map((message) => (
-              <div key={message.id} className={`message-row ${message.role}`}>
-                <div className="message-bubble">
-                  <span className="message-role">{message.role === "assistant" ? "S.C.I.O.N." : "You"}</span>
-                  <p>{message.content}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="empty-state">
-              <h2>Excellent. Another perfectly reasonable attempt to persuade the laws of physics to cooperate.</h2>
-              <p>{initialPrompt}</p>
-            </div>
-          )}
-          <div ref={endRef} />
-        </div>
-
-        <form className="composer" onSubmit={handleSubmit}>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask S.C.I.O.N. to analyze, debug, research, or plan..."
-            rows={4}
-          />
-          <div className="composer-actions">
-            <button type="submit" className="primary-button" disabled={isLoading || !input.trim()}>
-              {isLoading ? "Processing..." : "Send"}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <aside className="memory-panel">
-        <div className="panel-card">
-          <h3>Knowledge vault</h3>
-          {docs.length ? (
-            docs.map((doc) => (
-              <div key={doc.id} className="document-item">
-                <strong>{doc.title}</strong>
-                <p>{doc.content.slice(0, 180)}...</p>
-              </div>
-            ))
-          ) : (
-            <p>No documents stored yet.</p>
-          )}
-        </div>
-
-        <div className="panel-card">
-          <h3>Quick ingest</h3>
-          <input
-            value={documentTitle}
-            onChange={(e) => setDocumentTitle(e.target.value)}
-            placeholder="Title"
-          />
-          <textarea
-            rows={5}
-            value={documentBody}
-            onChange={(e) => setDocumentBody(e.target.value)}
-            placeholder="Paste a paper excerpt, notes, or a research summary..."
-          />
-          <input
-            value={documentTags}
-            onChange={(e) => setDocumentTags(e.target.value)}
-            placeholder="tags, comma separated"
-          />
-          <button className="secondary-button" type="button" onClick={handleSaveDocument}>
-            Save to memory
-          </button>
-        </div>
-      </aside>
-    </main>
-  );
+  .message-bubble {
+    max-width: 92%;
+  }
 }
